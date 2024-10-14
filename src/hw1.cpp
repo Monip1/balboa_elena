@@ -2,8 +2,10 @@
 #include "hw1_scenes.h"
 #include <stdio.h>
 
+
 using namespace hw1;
 
+#define divisions 4
 /*int min (int a, int b){
     return a < b ?  a : b;
 }
@@ -46,7 +48,7 @@ Image3 hw_1_1(const std::vector<std::string> &params) {
 
     for (int y = 0; y < img.height; y++) {
         for (int x = 0; x < img.width; x++) {
-            Vector2 toPoint = Vector2{ center.x - x, center.y - y };
+            Vector2 toPoint = Vector2{ center.x - (x + Real(0.5)), center.y - (y +Real(0.5))};
             Real dist = length(toPoint);
             if (dist <= radius) {
                 img(x, y) = color;
@@ -93,7 +95,7 @@ Image3 hw_1_2(const std::vector<std::string> &params) {
         int maxY = constrain(circ.center.y + circ.radius, 0, img.height-1);
         for (int y = minY; y <= maxY; y++) {
             for (int x = minX; x <= maxX; x++) {
-                Real dist = length(Vector2{ circ.center.x - x, circ.center.y - y });
+                Real dist = length(Vector2{ circ.center.x - (x +Real(0.5)), circ.center.y - (y + Real(0.5))});
                 if (dist <= circ.radius) {
                     img(x, y) = circ.color;
                 }
@@ -148,7 +150,8 @@ Image3 hw_1_3(const std::vector<std::string> &params) {
             int maxY = constrain(circ->center.y + circ->radius, 0, img.height - 1);
             for (int y = minY; y <= maxY; y++) {
                 for (int x = minX; x <= maxX; x++) {
-                    Real dist = length(Vector2{ circ->center.x - x, circ->center.y - y });
+                    Vector2 p = Vector2(x + Real(0.5), y + Real(0.5));
+                    Real dist = length(Vector2{ circ->center.x - p.x, circ->center.y - p.y});
                     if (dist <= circ->radius) {
                         img(x, y) = circ->color;
                     }
@@ -166,7 +169,7 @@ Image3 hw_1_3(const std::vector<std::string> &params) {
         else if (auto* triangle = std::get_if<Triangle>(&shape)) {
             for (int y = 0; y < img.height; y++) {
                 for (int x = 0; x < img.width; x++) {
-                    Vector2 q = Vector2(x, y);
+                    Vector2 q = Vector2(x+Real(0.5), y+Real(0.5));
                     bool hp01 = halfPlane(triangle->p0, triangle->p1, q);
                     bool hp12 = halfPlane(triangle->p1, triangle->p2, q);
                     bool hp20 = halfPlane(triangle->p2, triangle->p0, q);
@@ -208,7 +211,7 @@ Image3 hw_1_4(const std::vector<std::string> &params) {
             for (int y = 0; y < img.height; y++) {
                 for (int x = 0; x < img.width; x++) {
 
-                    Vector3 tp = inverse(circ->transform) * Vector3(x, y, 1);
+                    Vector3 tp = inverse(circ->transform) * Vector3(x+Real(0.5), y+Real(0.5), 1.0);
                     Real dist = length(Vector2{ circ->center.x - tp.x , circ->center.y - tp.y });
                     if (dist <= circ->radius) {
                         img(x, y) = circ->color;
@@ -220,7 +223,7 @@ Image3 hw_1_4(const std::vector<std::string> &params) {
         else if (auto* rectangle = std::get_if<Rectangle>(&shape)) {
             for (int y = 0; y < img.height; y++) {
                 for (int x = 0; x < img.width; x++) {
-                    Vector3 tp = inverse(rectangle->transform) * Vector3(x, y, 1);
+                    Vector3 tp = inverse(rectangle->transform) * Vector3(x+Real(0.5), y+Real(0.5), 1.0);
                     if (tp.x >= rectangle->p_min.x && tp.x <= rectangle->p_max.x && tp.y >= rectangle->p_min.y && tp.y <= rectangle->p_max.y) {
                         img(x,y) = rectangle->color;
                     }
@@ -231,7 +234,7 @@ Image3 hw_1_4(const std::vector<std::string> &params) {
         else if (auto* triangle = std::get_if<Triangle>(&shape)) {
             for (int y = 0; y < img.height; y++) {
                 for (int x = 0; x < img.width; x++) {
-                    Vector3 tp = inverse(triangle->transform) * Vector3(x, y, 1);
+                    Vector3 tp = inverse(triangle->transform) * Vector3(x+Real(0.5), y+Real(0.5), 1.0);
                     Vector2 q = Vector2(tp.x, tp.y);
                     bool hp01 = halfPlane(triangle->p0, triangle->p1, q);
                     bool hp12 = halfPlane(triangle->p1, triangle->p2, q);
@@ -249,6 +252,15 @@ Image3 hw_1_4(const std::vector<std::string> &params) {
     }
     return img;
 }
+Vector3 avgCol(Vector3 colors[divisions][divisions]) {
+    Vector3 acc = { 0,0,0 };
+    for (int i = 0; i < divisions; i++) {
+        for (int j = 0; j < divisions; j++) {
+            acc += colors[i][j];
+        }
+    }
+    return (acc / (divisions * divisions*1.0));
+}
 
 Image3 hw_1_5(const std::vector<std::string> &params) {
     // Homework 1.5: antialiasing
@@ -263,9 +275,86 @@ Image3 hw_1_5(const std::vector<std::string> &params) {
 
     for (int y = 0; y < img.height; y++) {
         for (int x = 0; x < img.width; x++) {
-            img(x, y) = Vector3{1, 1, 1};
+            img(x, y) = scene.background;
         }
     }
+    for (Shape shape : scene.shapes) {
+
+        if (auto* circ = std::get_if<Circle>(&shape)) {
+            
+            for (int y = 0; y < img.height; y++) {
+                for (int x = 0; x < img.width; x++) {
+                    Vector3 subColors[divisions][divisions];
+                    for (int i = 0; i < divisions; i++) {
+                        for (int j = 0; j < divisions; j++) {
+                            Vector2 p = Vector2(x + (Real(1.0 / divisions) * i) + Real(1.0 / (divisions * 2.0)), y + (Real(1.0 / divisions) * j) + Real(1.0 / (divisions * 2.0)));
+                            Vector3 tp = inverse(circ->transform) * Vector3(p.x,p.y, 1.0);
+                            Real dist = length(Vector2{ circ->center.x - tp.x , circ->center.y - tp.y });
+                            if (dist <= circ->radius) {
+                                subColors[i][j] = circ->color;
+                            }
+                            else {
+                                subColors[i][j] = img(x, y);
+                            }
+                        }
+                    }
+
+                    img(x, y) = avgCol(subColors);
+                }
+            }
+            printf("I am a circle\n");
+        }
+        else if (auto* rectangle = std::get_if<Rectangle>(&shape)) {
+            for (int y = 0; y < img.height; y++) {
+                for (int x = 0; x < img.width; x++) {
+                    Vector3 subColors[divisions][divisions];
+                    for (int i = 0; i < divisions; i++) {
+                        for (int j = 0; j < divisions; j++) {
+                            Vector2 p = Vector2(x + (Real(1.0 / divisions) * i) + Real(1.0 / (divisions * 2.0)), y + (Real(1.0 / divisions) * j) + Real(1.0 / (divisions * 2.0)));
+                            Vector3 tp = inverse(rectangle->transform) * Vector3(p.x, p.y, 1.0);
+                            if (tp.x >= rectangle->p_min.x && tp.x <= rectangle->p_max.x && tp.y >= rectangle->p_min.y && tp.y <= rectangle->p_max.y) {
+                                subColors[i][j] = rectangle->color;
+                            }
+                            else {
+                                subColors[i][j] = img(x, y);
+                            }
+                        }
+                    }
+                    img(x, y) = avgCol(subColors);
+                }
+            }
+            printf("a rectangle yay\n");
+        }
+        else if (auto* triangle = std::get_if<Triangle>(&shape)) {
+            for (int y = 0; y < img.height; y++) {
+                for (int x = 0; x < img.width; x++) {
+                    //Vector3 tp = inverse(triangle->transform) * Vector3(x, y, 1);
+                    
+                    Vector3 subColors[divisions][divisions];
+                    for (int i = 0; i < divisions; i++) {
+                        for (int j = 0; j < divisions; j++) {
+                            Vector2 p = Vector2(x + (Real(1.0 / divisions) * i) + Real(1.0 / (divisions * 2.0)), y + (Real(1.0 / divisions) * j) + Real(1.0 / (divisions * 2.0)));
+                            Vector3 tp = inverse(triangle->transform) * Vector3(p.x,p.y, 1.0);
+                            Vector2 q = Vector2(tp.x, tp.y);
+                            bool hp01 = halfPlane(triangle->p0, triangle->p1, q);
+                            bool hp12 = halfPlane(triangle->p1, triangle->p2, q);
+                            bool hp20 = halfPlane(triangle->p2, triangle->p0, q);
+                            if ((hp01 && hp12 && hp20) || !(hp01 || hp12 || hp20)) {
+                                subColors[i][j] = triangle->color;
+                            }
+                            else {
+                                subColors[i][j] = img(x, y);
+                            }
+                        }
+                    }
+                    img(x, y) = avgCol(subColors);
+                }
+            }
+            printf("I'm a triangle yayyyy\n");
+        }
+    }
+
+
     return img;
 }
 
@@ -280,10 +369,88 @@ Image3 hw_1_6(const std::vector<std::string> &params) {
 
     Image3 img(scene.resolution.x, scene.resolution.y);
 
+
     for (int y = 0; y < img.height; y++) {
         for (int x = 0; x < img.width; x++) {
-            img(x, y) = Vector3{1, 1, 1};
+            img(x, y) = scene.background;
         }
     }
+    for (Shape shape : scene.shapes) {
+
+        if (auto* circ = std::get_if<Circle>(&shape)) {
+
+            for (int y = 0; y < img.height; y++) {
+                for (int x = 0; x < img.width; x++) {
+                    Vector3 subColors[divisions][divisions];
+                    for (int i = 0; i < divisions; i++) {
+                        for (int j = 0; j < divisions; j++) {
+                            Vector2 p = Vector2(x + (Real(1.0 / divisions) * i) + Real(1.0 / (divisions * 2.0)), y + (Real(1.0 / divisions) * j) + Real(1.0 / (divisions * 2.0)));
+                            Vector3 tp = inverse(circ->transform) * Vector3(p.x, p.y, 1.0);
+                            Real dist = length(Vector2{ circ->center.x - tp.x , circ->center.y - tp.y });
+                            if (dist <= circ->radius) {
+                                subColors[i][j] = circ->color * circ->alpha + (1 - circ->alpha) * img(x, y);
+                            }
+                            else {
+                                subColors[i][j] = img(x, y);
+                            }
+                        }
+                    }
+
+                    img(x, y) = avgCol(subColors);
+                }
+            }
+            printf("I am a circle\n");
+        }
+        else if (auto* rectangle = std::get_if<Rectangle>(&shape)) {
+            for (int y = 0; y < img.height; y++) {
+                for (int x = 0; x < img.width; x++) {
+                    Vector3 subColors[divisions][divisions];
+                    for (int i = 0; i < divisions; i++) {
+                        for (int j = 0; j < divisions; j++) {
+                            Vector2 p = Vector2(x + (Real(1.0 / divisions) * i) + Real(1.0 / (divisions * 2.0)), y + (Real(1.0 / divisions) * j) + Real(1.0 / (divisions * 2.0)));
+                            Vector3 tp = inverse(rectangle->transform) * Vector3(p.x, p.y, 1.0);
+                            if (tp.x >= rectangle->p_min.x && tp.x <= rectangle->p_max.x && tp.y >= rectangle->p_min.y && tp.y <= rectangle->p_max.y) {
+                                subColors[i][j] = rectangle->color * rectangle->alpha + (1-rectangle->alpha)*img(x,y);
+                            }
+                            else {
+                                subColors[i][j] = img(x, y);
+                            }
+                        }
+                    }
+                    img(x, y) = avgCol(subColors);
+                }
+            }
+            printf("a rectangle yay\n");
+        }
+        else if (auto* triangle = std::get_if<Triangle>(&shape)) {
+            for (int y = 0; y < img.height; y++) {
+                for (int x = 0; x < img.width; x++) {
+                    //Vector3 tp = inverse(triangle->transform) * Vector3(x, y, 1);
+
+                    Vector3 subColors[divisions][divisions];
+                    for (int i = 0; i < divisions; i++) {
+                        for (int j = 0; j < divisions; j++) {
+                            Vector2 p = Vector2(x + (Real(1.0 / divisions) * i) + Real(1.0 / (divisions * 2.0)), y + (Real(1.0 / divisions) * j) + Real(1.0 / (divisions * 2.0)));
+                            Vector3 tp = inverse(triangle->transform) * Vector3(p.x, p.y, 1.0);
+                            Vector2 q = Vector2(tp.x, tp.y);
+                            bool hp01 = halfPlane(triangle->p0, triangle->p1, q);
+                            bool hp12 = halfPlane(triangle->p1, triangle->p2, q);
+                            bool hp20 = halfPlane(triangle->p2, triangle->p0, q);
+                            if ((hp01 && hp12 && hp20) || !(hp01 || hp12 || hp20)) {
+                                subColors[i][j] = triangle->color * triangle->alpha + (1 - triangle->alpha) * img(x, y);
+                            }
+                            else {
+                                subColors[i][j] = img(x, y);
+                            }
+                        }
+                    }
+                    img(x, y) = avgCol(subColors);
+                }
+            }
+            printf("I'm a triangle yayyyy\n");
+        }
+    }
+
+
     return img;
 }

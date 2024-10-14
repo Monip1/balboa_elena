@@ -3,7 +3,9 @@
 #include "flexception.h"
 #include "matrix.h"
 #include <fstream>
+#include <cmath>
 
+#define PI 3.141592653589793238463
 using json = nlohmann::json;
 
 namespace hw1 {
@@ -119,10 +121,10 @@ Matrix3x3 parse_transformation(const json& node) {
             Real angle = *rotate_it;
             // TODO (HW1.4): construct a rotation matrix and composite with F
             //Matrix3x3 R = Matrix3x3::identity();
-            S(0, 0) = cos(angle);
-            S(0, 1) = 0 - sin(angle);
-            S(1, 0) = sin(angle);
-            S(1, 1) = cos(angle);
+            S(0, 0) = cos(angle*PI/180.0);
+            S(0, 1) = 0-sin(angle * PI/180.0);
+            S(1, 0) = sin(angle * PI/180.0);
+            S(1, 1) = cos(angle * PI/180.0);
             //F = F * R;
             //UNUSED(angle); // silence warning, feel free to remove it
         }
