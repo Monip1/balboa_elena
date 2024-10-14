@@ -64,16 +64,34 @@ CircleScene hw1_2_scene_4 = {
         {{465, 300}, 150, {0.3, 0.8, 0.3}}
     }
 };
+std::vector<Circle> manyCircles() {
+    std::vector<Circle> circles;
+    //circles.push_back(Circle{ {300, 200}, 100, {0.2, 0.6, 0.95} });
+    for (int i = 0; i < 500; i ++) {
+        circles.push_back(Circle{{i, 150}, 50, {i/100, i/100, i/100}});
+        //circles.push_back(Circle{ {i, (int) (300 * (1 + sin(3 * i * i - 5 * i)))}, sqrt(i), {(int)((1+sin(i))/2), (int)((1 + sin(i*i*7)) / 2), (int)((1 + sin(i+1 +7/i)) / 2)}});
+    }
+    return circles;
+}
+
+CircleScene hw1_2_scene_5 = {
+    {640, 360}, // resolution
+    {0.9, 0.7, 0.05}, // background
+    { // center, radius, color
+        manyCircles(),
+    }
+};
 
 CircleScene hw1_2_scenes[] = {
     hw1_2_scene_0,
     hw1_2_scene_1,
     hw1_2_scene_2,
     hw1_2_scene_3,
-    hw1_2_scene_4
+    hw1_2_scene_4,
+    hw1_2_scene_5
 };
 
-Matrix3x3 parse_transformation(const json &node) {
+Matrix3x3 parse_transformation(const json& node) {
     // Homework 1.4: parse a sequence of linear transformation and 
     // combine them into an affine matrix
     Matrix3x3 F = Matrix3x3::identity();
@@ -83,32 +101,70 @@ Matrix3x3 parse_transformation(const json &node) {
         return F;
     }
 
+
+    Matrix3x3 S = Matrix3x3::identity();
     for (auto it = transform_it->begin(); it != transform_it->end(); it++) {
+        S = Matrix3x3::identity();
         if (auto scale_it = it->find("scale"); scale_it != it->end()) {
             Vector2 scale = Vector2{
                 (*scale_it)[0], (*scale_it)[1]
             };
             // TODO (HW1.4): construct a scale matrix and composite with F
-            UNUSED(scale); // silence warning, feel free to remove it
-        } else if (auto rotate_it = it->find("rotate"); rotate_it != it->end()) {
+            S(0, 0) = scale.x;
+            S(1, 1) = scale.y;
+            //F = F * S;
+            //UNUSED(scale); // silence warning, feel free to remove it
+        }
+        else if (auto rotate_it = it->find("rotate"); rotate_it != it->end()) {
             Real angle = *rotate_it;
             // TODO (HW1.4): construct a rotation matrix and composite with F
-            UNUSED(angle); // silence warning, feel free to remove it
-        } else if (auto translate_it = it->find("translate"); translate_it != it->end()) {
+            //Matrix3x3 R = Matrix3x3::identity();
+            S(0, 0) = cos(angle);
+            S(0, 1) = 0 - sin(angle);
+            S(1, 0) = sin(angle);
+            S(1, 1) = cos(angle);
+            //F = F * R;
+            //UNUSED(angle); // silence warning, feel free to remove it
+        }
+        else if (auto translate_it = it->find("translate"); translate_it != it->end()) {
             Vector2 translate = Vector2{
                 (*translate_it)[0], (*translate_it)[1]
             };
+
             // TODO (HW1.4): construct a translation matrix and composite with F
-            UNUSED(translate); // silence warning, feel free to remove it
-        } else if (auto shearx_it = it->find("shear_x"); shearx_it != it->end()) {
+            //Matrix3x3 T = Matrix3x3::identity();
+            S(0, 2) = translate.x;
+            S(1, 2) = translate.y;
+            //F = F * T;
+            //UNUSED(translate); // silence warning, feel free to remove it
+        }
+        else if (auto shearx_it = it->find("shear_x"); shearx_it != it->end()) {
             Real shear_x = *shearx_it;
             // TODO (HW1.4): construct a shear matrix (x direction) and composite with F
-            UNUSED(shear_x); // silence warning, feel free to remove it
-        } else if (auto sheary_it = it->find("shear_y"); sheary_it != it->end()) {
-            Real shear_y = *sheary_it;
-            // TODO (HW1.4): construct a shear matrix (y direction) and composite with F
-            UNUSED(shear_y); // silence warning, feel free to remove it
+            //Matrix3x3 S = Matrix3x3::identity();
+            S(0, 1) = shear_x;
+            
+            //UNUSED(shear_x); // silence warning, feel free to remove it
         }
+        else if (auto sheary_it = it->find("shear_y"); sheary_it != it->end()) {
+            Real shear_y = *sheary_it;
+            //Matrix3x3 S = Matrix3x3::identity();
+            S(1, 0) = shear_y;
+            //F = F * S;
+            // TODO (HW1.4): construct a shear matrix (y direction) and composite with F
+            //UNUSED(shear_y); // silence warning, feel free to remove it
+        }
+
+        Matrix3x3 result;
+        for (int i = 0; i < 3; i++) {
+            for (int j = 0; j < 3 ; j++){
+                result(i, j) = 0;
+                for (int k = 0; k < 3; k++){
+                    result(i, j) += S(i, k) * F(k, j); // "row times column"
+                }
+            }
+        }
+        F = result;
     }
     return F;
 }

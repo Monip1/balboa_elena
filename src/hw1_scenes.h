@@ -59,6 +59,7 @@ struct Scene {
     std::vector<Shape> shapes;
 };
 
+//Matrix3x3 parse_transformation(const json& node);
 Scene parse_scene(const fs::path &filename);
 
 std::ostream& operator<<(std::ostream &os, const Shape &shape);

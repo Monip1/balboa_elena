@@ -1,0 +1,13 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "hw1_1", 
+            "type": "cppvsdbg", 
+            "request": "launch", 
+            "program": "${workspaceFolder}/build/${command:cmake.buildType}/balboa.exe",
+            "cwd": "${workspaceFolder}/build/${command:cmake.buildType}", 
+            "args": ["-hw", "1_1"]
+        }
+    ]
+}
