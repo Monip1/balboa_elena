@@ -1,4 +1,4 @@
-#include "hw2_scenes.h"
+﻿#include "hw2_scenes.h"
 #include "3rdparty/json.hpp"
 #include "3rdparty/tinyply.h"
 #include "flexception.h"
@@ -6,6 +6,7 @@
 
 using json = nlohmann::json;
 
+#define PI 3.141592653589793238463
 namespace hw2 {
 
 // A triangle and a quadliteral
@@ -236,27 +237,42 @@ Matrix4x4 parse_transformation(const json &node) {
         return F;
     }
 
+    Matrix4x4 S = Matrix4x4::identity();
     for (auto it = transform_it->begin(); it != transform_it->end(); it++) {
+        S = Matrix4x4::identity();
         if (auto scale_it = it->find("scale"); scale_it != it->end()) {
             Vector3 scale = Vector3{
                 (*scale_it)[0], (*scale_it)[1], (*scale_it)[2]
             };
             // TODO (HW2.4): construct a scale matrix and composite with F
-            UNUSED(scale); // silence warning, feel free to remove it
+            S(0, 0) = scale.x;
+            S(1, 1) = scale.y;
+            S(2, 2) = scale.z;
         } else if (auto rotate_it = it->find("rotate"); rotate_it != it->end()) {
             Real angle = (*rotate_it)[0];
+            angle = angle * 180 / PI;
             Vector3 axis = normalize(Vector3{
                 (*rotate_it)[1], (*rotate_it)[2], (*rotate_it)[3]
             });
             // TODO (HW2.4): construct a rotation matrix and composite with F
-            UNUSED(angle); // silence warning, feel free to remove it
-            UNUSED(axis); // silence warning, feel free to remove it
+            S(0, 0) = axis.x * axis.x + (1.0 - axis.x * axis.x) * cos(angle); //a.xa.x + (1.0 − a.xa.x) cos
+            S(1, 0) = axis.x * axis.y * (1.0 - cos(angle)) + axis.z * sin(angle); //a.xa.y(1.0 − cos) + a.z sin 
+            S(2, 0) = axis.x * axis.z * (1.0 - cos(angle)) - axis.y * sin(angle);
+            S(0, 1) = axis.y * axis.x * (1.0 - cos(angle)) - axis.z * sin(angle); 
+            S(1, 1) = axis.y * axis.y + (1.0 - axis.y * axis.y) * cos(angle);
+            S(2, 1) = axis.y * axis.z * (1.0 - cos(angle)) + axis.x * sin(angle);
+            S(0, 2) = axis.z * axis.x * (1.0 - cos(angle)) + axis.y * sin(angle);
+            S(1, 2) = axis.z * axis.y * (1.0 - cos(angle)) - axis.x * sin(angle);
+            S(2, 2) = axis.z * axis.z + (1.0 - axis.z * axis.z) * cos(angle);
+
         } else if (auto translate_it = it->find("translate"); translate_it != it->end()) {
             Vector3 translate = Vector3{
                 (*translate_it)[0], (*translate_it)[1], (*translate_it)[2]
             };
             // TODO (HW2.4): construct a translation matrix and composite with F
-            UNUSED(translate); // silence warning, feel free to remove it
+            S(0, 3) = translate.x;
+            S(1, 3) = translate.y;
+            S(2, 3) = translate.z;
         } else if (auto lookat_it = it->find("lookat"); lookat_it != it->end()) {
             Vector3 position{0, 0, 0};
             Vector3 target{0, 0, -1};
@@ -280,7 +296,25 @@ Matrix4x4 parse_transformation(const json &node) {
                 });
             }
             // TODO (HW2.4): construct a lookat matrix and composite with F
+            Vector3 d = normalize(target - position);
+            Vector3 r = normalize(cross(d, up));
+            Vector3 u2 = cross(r, d);
+            S = { r.x, u2.x, 0.0 - d.x, position.x,
+                  r.y, u2.y, 0.0 - d.y, position.y,
+                  r.z, u2.z, 0.0 - d.z, position.z,
+                  0.0, 0.0, 0.0, 1.0
+            };
         }
+        Matrix4x4 result;
+        for (int i = 0; i < 4; i++) {
+            for (int j = 0; j < 4; j++) {
+                result(i, j) = 0;
+                for (int k = 0; k < 4; k++) {
+                    result(i, j) += S(i, k) * F(k, j); // "row times column"
+                }
+            }
+        }
+        F = result;
     }
     return F;
 }
