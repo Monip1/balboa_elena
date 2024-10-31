@@ -250,7 +250,7 @@ Matrix4x4 parse_transformation(const json &node) {
             S(2, 2) = scale.z;
         } else if (auto rotate_it = it->find("rotate"); rotate_it != it->end()) {
             Real angle = (*rotate_it)[0];
-            angle = angle * 180 / PI;
+            angle = angle * PI / 180.0;
             Vector3 axis = normalize(Vector3{
                 (*rotate_it)[1], (*rotate_it)[2], (*rotate_it)[3]
             });
@@ -445,5 +445,6 @@ std::ostream& operator<<(std::ostream &os, const Scene &scene) {
     os << "]";
     return os;
 }
+
 
 } // namespace hw2

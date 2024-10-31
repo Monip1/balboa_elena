@@ -214,7 +214,7 @@ Image3 hw_2_2(const std::vector<std::string> &params) {
                         Vector3 p2 = mesh.vertices.at(face.z);
                         // if any point is behind clipping plane, ignore this triangle completely
                         if (0.0 - p0.z < z_near || 0.0 - p1.z < z_near || 0.0 - p2.z < z_near) {
-                            return img;
+                            continue;
                         }
                         // calculate points in projected camera space
                         Vector2 p0pc{ 0.0 - p0.x / p0.z , 0.0 - p0.y / p0.z };
@@ -308,13 +308,14 @@ Image3 hw_2_3(const std::vector<std::string> &params) {
                         Vector3 p2 = mesh.vertices.at(face.z);
                         // if any point is behind clipping plane, ignore this triangle completely
                         if (0.0 - p0.z < z_near || 0.0 - p1.z < z_near || 0.0 - p2.z < z_near) {
-                            return img;
+                            continue;
                         }
                         // calculate points in projected camera space
                         Vector2 p0pc{ 0.0 - p0.x / p0.z , 0.0 - p0.y / p0.z };
                         Vector2 p1pc{ 0.0 - p1.x / p1.z , 0.0 - p1.y / p1.z };
                         Vector2 p2pc{ 0.0 - p2.x / p2.z , 0.0 - p2.y / p2.z };
                         Vector2 q = Vector2(x + (Real(1.0 / divisions) * i) + Real(1.0 / (divisions * 2.0)), y + (Real(1.0 / divisions) * j) + Real(1.0 / (divisions * 2.0)));
+                        
                         //calculate the screen space points
                         Real a = (Real)img.width / (Real)img.height;
                         Vector2 p0ss{ (Real)img.width * (p0pc.x + s * a) / (2.0 * s * a), (Real)img.height * (p0pc.y - s) / (0.0 - 2.0 * s) };
@@ -360,14 +361,18 @@ Image3 hw_2_4(const std::vector<std::string> &params) {
 
     Real z_near = scene.camera.z_near;
     Real s = scene.camera.s;
+
+
+    for (int y = 0; y < img.height; y++) {
+        for (int x = 0; x < img.width; x++) {
+            img(x, y) = scene.background;
+        }
+    }
+
     for (TriangleMesh mesh : scene.meshes) {
         UNUSED(mesh); // silence warning, feel free to remove this
         // paint background
-        for (int y = 0; y < img.height; y++) {
-            for (int x = 0; x < img.width; x++) {
-                img(x, y) = Vector3{ 0.5, 0.5, 0.5 };
-            }
-        }
+        
 
 
         //for each point in the screen space
@@ -384,19 +389,33 @@ Image3 hw_2_4(const std::vector<std::string> &params) {
                         subColors[i][j] = img(x, y);
                         for (int k = 0; k < mesh.faces.size(); k++) {
 
+                            // object space
                             Vector3i face = mesh.faces.at(k);
-                            Vector3 p0 = mesh.vertices.at(face.x);
-                            Vector3 p1 = mesh.vertices.at(face.y);
-                            Vector3 p2 = mesh.vertices.at(face.z);
+                            Vector3 p0o = mesh.vertices.at(face.x);
+                            Vector3 p1o = mesh.vertices.at(face.y);
+                            Vector3 p2o = mesh.vertices.at(face.z);
                             // if any point is behind clipping plane, ignore this triangle completely
-                            if (0.0 - p0.z < z_near || 0.0 - p1.z < z_near || 0.0 - p2.z < z_near) {
-                                return img;
-                            }
+                            
 
+                            //world space
+                            //Vector3 p = Vector3(x + (Real(1.0 / divisions) * i) + Real(1.0 / (divisions * 2.0)), y + (Real(1.0 / divisions) * j) + Real(1.0 / (divisions * 2.0)), 1.0);
+                            Vector4 wp0 = (mesh.model_matrix) * Vector4(p0o.x, p0o.y, p0o.z, 1.0);
+                            Vector4 wp1 = (mesh.model_matrix) * Vector4(p1o.x, p1o.y, p1o.z, 1.0);
+                            Vector4 wp2 = (mesh.model_matrix) * Vector4(p2o.x, p2o.y, p2o.z, 1.0);
+                            
+
+
+                            //Camera space
                             //Vector3 p = Vector3(x + (Real(1.0 / divisions) * i) + Real(1.0 / (divisions * 2.0)), y + (Real(1.0 / divisions) * j) + Real(1.0 / (divisions * 2.0)));
-                            Vector4 tp0 = inverse(scene.camera.cam_to_world) * Vector4(p0.x, p0.y, p0.z, 1.0);
-                            Vector4 tp1 = inverse(scene.camera.cam_to_world) * Vector4(p1.x, p1.y, p1.z, 1.0);
-                            Vector4 tp2 = inverse(scene.camera.cam_to_world) * Vector4(p2.x, p2.y, p2.z, 1.0);
+                            Vector4 tp0f = inverse(scene.camera.cam_to_world) * wp0;
+                            Vector4 tp1f = inverse(scene.camera.cam_to_world) * wp1;
+                            Vector4 tp2f = inverse(scene.camera.cam_to_world) * wp2;
+                            Vector3 tp0 = Vector3(tp0f.x, tp0f.y, tp0f.z);
+                            Vector3 tp1 = Vector3(tp1f.x, tp1f.y, tp1f.z);
+                            Vector3 tp2 = Vector3(tp2f.x, tp2f.y, tp2f.z);
+                            if (0.0 - tp0.z < z_near || 0.0 - tp1.z < z_near || 0.0 - tp2.z < z_near) {
+                                continue;
+                            }
 
                             // calculate points in projected camera space
                             Vector2 p0pc{ 0.0 - tp0.x / tp0.z , 0.0 - tp0.y / tp0.z };
@@ -416,8 +435,8 @@ Image3 hw_2_4(const std::vector<std::string> &params) {
                             if ((hp01 && hp12 && hp20) || !(hp01 || hp12 || hp20)) {
                                 Vector3 qp = Vector3((2.0 * q.x * s * a / (Real)img.width) - (s * a), (0.0 - 2.0 * s * q.y / (Real)img.height) + s, 0.0);
                                 //Real this_depth = depth(p0, p1, p2, Vector3(p0pc.x, p0pc.y, 0.0), Vector3(p1pc.x, p1pc.y, 0.0), Vector3(p2pc.x, p2pc.y, 0.0), qp);
-                                Vector3 bary = baryVals(p0, p1, p2, Vector3(p0ss.x, p0ss.y, 0.0), Vector3(p1ss.x, p1ss.y, 0.0), Vector3(p2ss.x, p2ss.y, 0.0), Vector3(q.x, q.y, 0.0));
-                                Real this_depth = depth(p0, p1, p2, Vector3(p0ss.x, p0ss.y, 0.0), Vector3(p1ss.x, p1ss.y, 0.0), Vector3(p2ss.x, p2ss.y, 0.0), Vector3(q.x, q.y, 0.0));
+                                Vector3 bary = baryVals(tp0, tp1, tp2, Vector3(p0ss.x, p0ss.y, 0.0), Vector3(p1ss.x, p1ss.y, 0.0), Vector3(p2ss.x, p2ss.y, 0.0), Vector3(q.x, q.y, 0.0));
+                                Real this_depth = depth(tp0, tp1, tp2, Vector3(p0ss.x, p0ss.y, 0.0), Vector3(p1ss.x, p1ss.y, 0.0), Vector3(p2ss.x, p2ss.y, 0.0), Vector3(q.x, q.y, 0.0));
                                 if (this_depth > z_min) {
                                     subColors[i][j] = bary.x * mesh.vertex_colors.at(face.x) + bary.y * mesh.vertex_colors.at(face.y) + bary.z * mesh.vertex_colors.at(face.z);
                                     z_min = this_depth;
