@@ -5894,7 +5894,9 @@ class byte_container_with_subtype : public BinaryType
 
   private:
     subtype_type m_subtype = 0;
-    bool m_has_subtype = false;
+    bool 
+        
+        m_has_subtype = false;
 };
 
 NLOHMANN_JSON_NAMESPACE_END

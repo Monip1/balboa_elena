@@ -5,7 +5,7 @@
 
 using namespace hw1;
 
-#define divisions 4
+#define divisions 8
 /*int min (int a, int b){
     return a < b ?  a : b;
 }
@@ -448,7 +448,8 @@ Image3 hw_1_6(const std::vector<std::string> &params) {
                             Vector2 p = Vector2(x + (Real(1.0 / divisions) * i) + Real(1.0 / (divisions * 2.0)), y + (Real(1.0 / divisions) * j) + Real(1.0 / (divisions * 2.0)));
                             Vector3 tp = inverse(rectangle->transform) * Vector3(p.x, p.y, 1.0);
                             if (tp.x >= rectangle->p_min.x && tp.x <= rectangle->p_max.x && tp.y >= rectangle->p_min.y && tp.y <= rectangle->p_max.y) {
-                                subColors[i][j] =             Vector3(1.0-((0.0+ x + y) / (0.0+img.height + img.width)), (0.0+x)/(0.0+img.width), (0.0+y)/img.height) * rectangle->alpha + (1-rectangle->alpha)*img(x,y);
+                                /*subColors[i][j] =             Vector3(1.0-((0.0+ x + y) / (0.0+img.height + img.width)), (0.0+x)/(0.0+img.width), (0.0+y)/img.height) * rectangle->alpha + (1-rectangle->alpha)*img(x,y);*/
+                                subColors[i][j] = rectangle->color * rectangle->alpha + (1 - rectangle->alpha) * img(x, y);
                             }
                             else {
                                 subColors[i][j] = img(x, y);
