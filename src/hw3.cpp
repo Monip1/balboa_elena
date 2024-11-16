@@ -14,6 +14,12 @@
 
 using namespace hw3;
 
+
+glm::vec3 cameraPos = glm::vec3(0.0f, 0.0f, 3.0f);
+glm::vec3 cameraFront = glm::vec3(0.0f, 0.0f, -1.0f);
+glm::vec3 cameraUp = glm::vec3(0.0f, 1.0f, 0.0f);
+
+
 const char* vertexShaderSource3_3 = "#version 330 core\n"
 "layout (location = 0) in vec3 aPos;\n"
 "layout (location = 1) in vec3 aColor;\n"
@@ -69,6 +75,16 @@ void processInput(GLFWwindow* window)
 {
     if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
         glfwSetWindowShouldClose(window, true);
+
+    const float cameraSpeed = 0.1f; // adjust accordingly
+    if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
+        cameraPos += cameraSpeed * cameraFront;
+    if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)
+        cameraPos -= cameraSpeed * cameraFront;
+    if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS)
+        cameraPos -= glm::normalize(glm::cross(cameraFront, cameraUp)) * cameraSpeed;
+    if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
+        cameraPos += glm::normalize(glm::cross(cameraFront, cameraUp)) * cameraSpeed;
 }
 
 void hw_3_1(const std::vector<std::string> &params) {
@@ -397,7 +413,23 @@ void hw_3_3(const std::vector<std::string>& params) {
 
             //view matrix
             int viewMatrixUnifLocation = glGetUniformLocation(shaderProgram, "view");
-            glm::mat4 view = glm::make_mat4(&scene.camera.cam_to_world.data[0][0]);
+
+
+            //glm::vec3 cameraPos = glm::vec3(0.0f, 0.0f, 3.0f);
+            //glm::vec3 cameraTarget = glm::vec3(0.0f, 0.0f, 0.0f);
+            //glm::vec3 cameraDirection = glm::normalize(cameraPos - cameraTarget);
+
+            //glm::vec3 up = glm::vec3(0.0f, 1.0f, 0.0f);
+            //glm::vec3 cameraRight = glm::normalize(glm::cross(up, cameraDirection));
+            //glm::vec3 cameraUp = glm::cross(cameraDirection, cameraRight);
+            const float radius = 10.0f;
+            float camX = sin(glfwGetTime()) * radius;
+            float camZ = cos(glfwGetTime()) * radius;
+            glm::mat4 view = glm::lookAt(cameraPos, cameraPos + cameraFront, cameraUp);
+                //glm::lookAt(cameraPos, cameraPos + cameraFront, cameraUp);
+                
+                //glm::lookAt(glm::vec3(camX, 0.0, camZ), glm::vec3(0.0, 0.0, 0.0), glm::vec3(0.0, 1.0, 0.0));
+                //glm::make_mat4(&scene.camera.cam_to_world.data[0][0]);
             glUseProgram(shaderProgram);
             glUniformMatrix4fv(viewMatrixUnifLocation, 1, GL_FALSE, glm::value_ptr(view));
 
