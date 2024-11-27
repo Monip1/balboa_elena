@@ -1,35 +1,8 @@
 #include "hw2.h"
 #include "hw2_scenes.h"
-#include "hw1.h"
-#include <limits>
 
 using namespace hw2;
 
-#define divisions 4
-//bool halfPlane(Vector2 p0, Vector2 p1, Vector2 q) {
-//    Vector2 n = Vector2(p1.y - p0.y, p0.x - p1.x);
-//    if (dot(q - p0, n) > 0) {
-//        return true;
-//    }
-//    return false;
-//}
-bool halfPlane(Vector2 p0, Vector2 p1, Vector2 q) {
-    Vector2 n = Vector2(p1.y - p0.y, p0.x - p1.x);
-    if (dot(q - p0, n) > 0) {
-        return true;
-    }
-    return false;
-}
-
-Vector3 avgCol(Vector3 colors[divisions][divisions]) {
-    Vector3 acc = { 0,0,0 };
-    for (int i = 0; i < divisions; i++) {
-        for (int j = 0; j < divisions; j++) {
-            acc += colors[i][j];
-        }
-    }
-    return (acc / (divisions * divisions * 1.0));
-}
 Image3 hw_2_1(const std::vector<std::string> &params) {
     // Homework 2.1: render a single 3D triangle
 
@@ -65,100 +38,52 @@ Image3 hw_2_1(const std::vector<std::string> &params) {
             z_near = std::stof(params[++i]);
         }
     }
+    Real a = Real(img.width) / Real(img.height);
 
-   
-    //triangle code
-    // calculate points in projected camera space
-    Vector2 p0pc { 0.0 - p0.x / p0.z , 0.0-p0.y/p0.z};
-    Vector2 p1pc{ 0.0 - p1.x / p1.z , 0.0 - p1.y / p1.z };
-    Vector2 p2pc{ 0.0 - p2.x / p2.z , 0.0 - p2.y / p2.z };
-    
-    //calculate the screen space points
-    Real a = (Real)img.width / (Real)img.height;
-    Vector2 p0ss{img.width*(p0pc.x+s*a)/(2.0*s*a), img.height*(p0pc.y-s)/(0.0-2.0*s)};
-    Vector2 p1ss{ img.width * (p1pc.x + s * a) / (2.0 * s * a), img.height * (p1pc.y - s) / (0.0 - 2.0 * s) };
-    Vector2 p2ss{ img.width * (p2pc.x + s * a) / (2.0 * s * a), img.height * (p2pc.y - s) / (0.0 - 2.0 * s) };
+    auto to_screen = [&](const Vector3 &p) {
+        Vector2 pp = Vector2{-p.x / p.z, -p.y / p.z};
+        Vector2 screen_pp = Vector2{img.width * (pp.x + s * a) / (2 * s * a),
+                                    -img.height * (pp.y - s) / (2 * s)};
+        return screen_pp;
+    };
+    Vector2 sp0 = to_screen(p0);
+    Vector2 sp1 = to_screen(p1);
+    Vector2 sp2 = to_screen(p2);
+    Vector2 e01 = sp1 - sp0, e12 = sp2 - sp1, e20 = sp0 - sp2;
+    auto normal = [](const Vector2 &v) {
+        return Vector2{v.y, -v.x};
+    };
+    Vector2 n01 = normal(e01),
+            n12 = normal(e12),
+            n20 = normal(e20);
 
-    // paint background
     for (int y = 0; y < img.height; y++) {
         for (int x = 0; x < img.width; x++) {
-            img(x, y) = Vector3{ 0.5, 0.5, 0.5 };
-        }
-    }
-
-    // if any point is behind clipping plane, ignore this triangle completely
-    if (0.0 - p0.z < z_near || 0.0 - p1.z < z_near || 0.0 - p2.z < z_near) {
-        return img;
-    }
-    //for each point in the screen space
-    for (int y = 0; y < img.height; y++) {
-        for (int x = 0; x < img.width; x++) {
-
-            //divide that pixel into 16 subdivisions (4x4) and compute color
-            Vector3 subColors[divisions][divisions];
-            for (int i = 0; i < divisions; i++) {
-                for (int j = 0; j < divisions; j++) {
-                    Vector2 q = Vector2(x + (Real(1.0 / divisions) * i) + Real(1.0 / (divisions * 2.0)), y + (Real(1.0 / divisions) * j) + Real(1.0 / (divisions * 2.0)));
-                    bool hp01 = halfPlane(p0ss, p1ss, q);
-                    bool hp12 = halfPlane(p1ss, p2ss, q);
-                    bool hp20 = halfPlane(p2ss, p0ss, q);
-                    if ((hp01 && hp12 && hp20) || !(hp01 || hp12 || hp20)) {
-                        subColors[i][j] = color;
-                    }
-                    else {
-                        subColors[i][j] = img(x, y);
+            Vector3 sum{0, 0, 0};
+            if (p0.z < -z_near && p1.z < -z_near && p2.z < -z_near) {
+                int n = 4;
+                for (int dx = 0; dx < n; dx++) {
+                    for (int dy = 0; dy < n; dy++) {
+                        Real xoff = (dx + Real(0.5)) / Real(n);
+                        Real yoff = (dy + Real(0.5)) / Real(n);
+                        Vector2 pixel_center{x + xoff, y + yoff};
+                        bool s01 = dot(pixel_center - sp0, n01) > 0;
+                        bool s12 = dot(pixel_center - sp1, n12) > 0;
+                        bool s20 = dot(pixel_center - sp2, n20) > 0;
+                        if ((s01 && s12 && s20) || (!s01 && !s12 && !s20)) {
+                            sum += color;
+                        } else {
+                            sum += Vector3{0.5, 0.5, 0.5};
+                        }
                     }
                 }
+                img(x, y) = sum / Real(n * n);
+            } else {
+                img(x, y) = Vector3{0.5, 0.5, 0.5};
             }
-            img(x, y) = avgCol(subColors);
         }
     }
-    
     return img;
-}
-
-Real absV(Real x) {
-    if (x < 0) {
-        return -x;
-    }
-    else {
-        return x;
-    }
-}
-
-Real area(Vector3 p0, Vector3 p1, Vector3 p2) {
-    return absV(length(cross(p1 - p0, p2 - p0)) / 2.0);
-}
-
-
-Vector3 baryVals(Vector3 p0, Vector3 p1, Vector3 p2, Vector3 p0p, Vector3 p1p, Vector3 p2p, Vector3 p) {
-    Real denom = area(p0p, p1p, p2p);
-    Real b0p = area(p, p1p, p2p) / denom;
-    Real b1p = area(p0p, p, p2p) / denom;
-    Real b2p = area(p0p, p1p, p) / denom;
-
-    Real denom_p = (b0p / p0.z) + (b1p / p1.z) + (b2p / p2.z);
-    Real b0 = (b0p / p0.z) / denom_p;
-    Real b1 = (b1p / p1.z) / denom_p;
-    Real b2 = (b2p / p2.z) / denom_p;
-
-    return Vector3(b0, b1, b2);
-}
-
-
-Real depth(Vector3 p0, Vector3 p1, Vector3 p2, Vector3 p0p, Vector3 p1p, Vector3 p2p, Vector3 p) {
-    Real denom = area(p0p, p1p, p2p);
-    Real b0p = area(p, p1p,p2p) / denom;
-    Real b1p = area(p0p,p,p2p) / denom;
-    Real b2p = area(p0p,p1p,p)/ denom;
-
-    Real denom_p = (b0p / p0.z) + (b1p / p1.z) + (b2p / p2.z);
-    Real b0 = (b0p / p0.z) / denom_p;
-    Real b1 = (b1p / p1.z) / denom_p;
-    Real b2 = (b2p / p2.z) / denom_p;
-
-    //std::cout << b0 + b1 + b2 << "\n";
-    return (b0*p0.z + b1*p1.z+b2*p2.z);
 }
 
 Image3 hw_2_2(const std::vector<std::string> &params) {
@@ -178,81 +103,118 @@ Image3 hw_2_2(const std::vector<std::string> &params) {
             scene_id = std::stoi(params[++i]);
         }
     }
-    // silence warnings, feel free to remove these
-    UNUSED(s); 
-    UNUSED(z_near);
-    UNUSED(scene_id);
+
+    Real a = Real(img.width) / Real(img.height);
 
     TriangleMesh mesh = meshes[scene_id];
-    UNUSED(mesh); // silence warning, feel free to remove this
- 
-    // paint background
+
     for (int y = 0; y < img.height; y++) {
         for (int x = 0; x < img.width; x++) {
-            img(x, y) = Vector3{ 0.5, 0.5, 0.5 };
-        }
-    }
+            Vector3 sum{0, 0, 0};
+            int n = 4;
+            for (int dx = 0; dx < n; dx++) {
+                for (int dy = 0; dy < n; dy++) {
+                    Real xoff = (dx + Real(0.5)) / Real(n);
+                    Real yoff = (dy + Real(0.5)) / Real(n);
+                    Vector2 pixel_center{x + xoff, y + yoff};
+                    Vector3 color = Vector3{0.5, 0.5, 0.5}; // background color
+                    Real z_min = infinity<Real>();
+                    for (int i = 0; i < (int)mesh.faces.size(); i++) {
+                        Vector3 p0 = mesh.vertices[mesh.faces[i][0]];
+                        Vector3 p1 = mesh.vertices[mesh.faces[i][1]];
+                        Vector3 p2 = mesh.vertices[mesh.faces[i][2]];
 
-  
-    //for each point in the screen space
-    for (int y = 0; y < img.height; y++) {
-        for (int x = 0; x < img.width; x++) {
-            //divide that pixel into 16 subdivisions (4x4) and compute color
-            Vector3 subColors[divisions][divisions];
-            for (int i = 0; i < divisions; i++) {
-                for (int j = 0; j < divisions; j++) {
-                    Real z_min = 0.0-std::numeric_limits<Real>::max();
-                    int kset = -1;
-                    //std::cout<< z_min;
-                    //set subpixel to background or prevous color
-                    subColors[i][j] = img(x, y);
-                    for (int k = 0; k < mesh.faces.size(); k++) {
-
-                        Vector3i face = mesh.faces.at(k);
-                        Vector3 p0 = mesh.vertices.at(face.x);
-                        Vector3 p1 = mesh.vertices.at(face.y);
-                        Vector3 p2 = mesh.vertices.at(face.z);
-                        // if any point is behind clipping plane, ignore this triangle completely
-                        if (0.0 - p0.z < z_near || 0.0 - p1.z < z_near || 0.0 - p2.z < z_near) {
+                        // We don't implement clipping here, if even one of the 
+                        // vertex is behind the clipping plane, we skip the triangle
+                        if (p0.z > -z_near || p1.z > -z_near || p2.z > -z_near) {
                             continue;
                         }
-                        // calculate points in projected camera space
-                        Vector2 p0pc{ 0.0 - p0.x / p0.z , 0.0 - p0.y / p0.z };
-                        Vector2 p1pc{ 0.0 - p1.x / p1.z , 0.0 - p1.y / p1.z };
-                        Vector2 p2pc{ 0.0 - p2.x / p2.z , 0.0 - p2.y / p2.z };
-                        Vector2 q = Vector2(x + (Real(1.0 / divisions) * i) + Real(1.0 / (divisions * 2.0)), y + (Real(1.0 / divisions) * j) + Real(1.0 / (divisions * 2.0)));
-                         //calculate the screen space points
-                        Real a = (Real)img.width / (Real)img.height;
-                        Vector2 p0ss{ (Real)img.width * (p0pc.x + s * a) / (2.0 * s * a), (Real)img.height * (p0pc.y - s) / (0.0 - 2.0 * s) };
-                        Vector2 p1ss{ (Real)img.width * (p1pc.x + s * a) / (2.0 * s * a), (Real)img.height * (p1pc.y - s) / (0.0 - 2.0 * s) };
-                        Vector2 p2ss{ (Real)img.width * (p2pc.x + s * a) / (2.0 * s * a), (Real)img.height * (p2pc.y - s) / (0.0 - 2.0 * s) };
 
+                        auto to_screen = [&](const Vector3 &p) {
+                            Vector2 pp = Vector2{-p.x / p.z, -p.y / p.z};
+                            Vector2 screen_pp = Vector2{img.width * (pp.x + s * a) / (2 * s * a),
+                                                        -img.height * (pp.y - s) / (2 * s)};
+                            return screen_pp;
+                        };
+                        Vector2 sp0 = to_screen(p0);
+                        Vector2 sp1 = to_screen(p1);
+                        Vector2 sp2 = to_screen(p2);
+                        Vector2 e01 = sp1 - sp0, e12 = sp2 - sp1, e20 = sp0 - sp2;
+                        auto normal = [](const Vector2 &v) {
+                            return Vector2{v.y, -v.x};
+                        };
+                        Vector2 n01 = normal(e01),
+                                n12 = normal(e12),
+                                n20 = normal(e20);
 
-                        bool hp01 = halfPlane(p0ss, p1ss, q);
-                        bool hp12 = halfPlane(p1ss, p2ss, q);
-                        bool hp20 = halfPlane(p2ss, p0ss, q);
-                        if ((hp01 && hp12 && hp20) || !(hp01 || hp12 || hp20)) {
-                            Vector3 qp = Vector3( (2.0*q.x*s*a/(Real)img.width)-(s*a), (0.0-2.0*s*q.y/(Real)img.height) + s, 0.0);
-                            Real this_depth = depth(p0, p1, p2, Vector3(p0pc.x, p0pc.y, 0.0), Vector3(p1pc.x, p1pc.y, 0.0), Vector3(p2pc.x, p2pc.y, 0.0), qp);
-                            //Real this_depth = depth(p0, p1, p2, Vector3(p0ss.x, p0ss.y, 0.0), Vector3(p1ss.x, p1ss.y, 0.0), Vector3(p2ss.x, p2ss.y, 0.0), Vector3(q.x,q.y,0.0));
-                            if(this_depth > z_min){
-                                if (k == 8 || k == 9) {
-                                    //std::cout << "zmin = " << z_min << " and this_depth = " << this_depth << " set in " << kset << "\n";
-                                }
-                                subColors[i][j] = mesh.face_colors.at(k);
-                                z_min = this_depth;
-                                kset = k;
-                            }
+                        bool s01 = dot(pixel_center - sp0, n01) > 0;
+                        bool s12 = dot(pixel_center - sp1, n12) > 0;
+                        bool s20 = dot(pixel_center - sp2, n20) > 0;
+                        if ((s01 && s12 && s20) || (!s01 && !s12 && !s20)) {
+                            // Inside the triangle
+                            // Interpolate Z
                             
+                            // 1. convert pixel center from screen space to camera space
+                            auto to_camera = [&](const Vector2 &p) {
+                                // camera to screen:
+                                // x'' = w ((x' + sa)/ (2sa))
+                                // y'' = -h ((y' - s)/ (2s))
+                                // screen to camera:
+                                // x' = 2sa x'' / w - sa
+                                // y' = - 2s y'' / h + s
+                                return Vector2{(2 * s * a) * p.x / img.width - s * a,
+                                               - 2 * s * p.y / img.height + s};
+                            };
+                            Vector2 pp = to_camera(pixel_center);
+                            Vector2 pp0 = to_camera(sp0);
+                            Vector2 pp1 = to_camera(sp1);
+                            Vector2 pp2 = to_camera(sp2);
+
+                            // 2. compute projected barycentric coordinates
+                            auto area = [&](const Vector2 pp0,
+                                            const Vector2 pp1,
+                                            const Vector2 pp2) {
+                                // lift things to 3D to take cross product
+                                Vector3 p0 = Vector3{pp0.x, pp0.y, Real(0)};
+                                Vector3 p1 = Vector3{pp1.x, pp1.y, Real(0)};
+                                Vector3 p2 = Vector3{pp2.x, pp2.y, Real(0)};
+                                return length(cross(p1 - p0, p2 - p0)) / 2;
+                            };
+
+                            Real a0 = area(pp, pp1, pp2);
+                            Real a1 = area(pp0, pp, pp2);
+                            Real a2 = area(pp0, pp1, pp);
+                            Real denom = area(pp0, pp1, pp2);
+                            Real b0p = a0 / denom;
+                            Real b1p = a1 / denom;
+                            Real b2p = a2 / denom;
+
+                            // 3. compute the original barycentric coordinates
+                            b0p /= p0.z; 
+                            b1p /= p1.z;
+                            b2p /= p2.z;
+                            Real b0 = b0p / (b0p + b1p + b2p);
+                            Real b1 = b1p / (b0p + b1p + b2p);
+                            Real b2 = b2p / (b0p + b1p + b2p);
+
+                            // 4. interpolate and obtain Z
+                            Real z = b0 * p0.z + b1 * p1.z + b2 * p2.z;
+                            // Remember to negate to make Z positive
+                            z = fabs(z);
+
+                            // Now, test if Z is smaller
+                            if (z < z_min) {
+                                color = mesh.face_colors[i];
+                                z_min = z;
+                            }
                         }
-                      
                     }
+                    sum += color;
                 }
             }
-            img(x, y) = avgCol(subColors);
+            img(x, y) = sum / Real(n * n);
         }
     }
-
     return img;
 }
 
@@ -273,78 +235,132 @@ Image3 hw_2_3(const std::vector<std::string> &params) {
             scene_id = std::stoi(params[++i]);
         }
     }
-    // silence warnings, feel free to remove these
-    UNUSED(s); 
-    UNUSED(z_near);
-    UNUSED(scene_id);
+
+    Real a = Real(img.width) / Real(img.height);
 
     TriangleMesh mesh = meshes[scene_id];
-    UNUSED(mesh); // silence warning, feel free to remove this
-    // paint background
+
     for (int y = 0; y < img.height; y++) {
         for (int x = 0; x < img.width; x++) {
-            img(x, y) = Vector3{ 0.5, 0.5, 0.5 };
-        }
-    }
+            Vector3 sum{0, 0, 0};
+            int n = 4;
+            for (int dx = 0; dx < n; dx++) {
+                for (int dy = 0; dy < n; dy++) {
+                    Real xoff = (dx + Real(0.5)) / Real(n);
+                    Real yoff = (dy + Real(0.5)) / Real(n);
+                    Vector2 pixel_center{x + xoff, y + yoff};
+                    Vector3 color = Vector3{0.5, 0.5, 0.5}; // background color
+                    Real z_min = infinity<Real>();
+                    for (int i = 0; i < (int)mesh.faces.size(); i++) {
+                        Vector3 p0 = mesh.vertices[mesh.faces[i][0]];
+                        Vector3 p1 = mesh.vertices[mesh.faces[i][1]];
+                        Vector3 p2 = mesh.vertices[mesh.faces[i][2]];
 
-
-    //for each point in the screen space
-    for (int y = 0; y < img.height; y++) {
-        for (int x = 0; x < img.width; x++) {
-            //divide that pixel into 16 subdivisions (4x4) and compute color
-            Vector3 subColors[divisions][divisions];
-            for (int i = 0; i < divisions; i++) {
-                for (int j = 0; j < divisions; j++) {
-                    Real z_min = 0.0 - std::numeric_limits<Real>::max();
-                    int kset = -1;
-                    //std::cout<< z_min;
-                    //set subpixel to background or prevous color
-                    subColors[i][j] = img(x, y);
-                    for (int k = 0; k < mesh.faces.size(); k++) {
-
-                        Vector3i face = mesh.faces.at(k);
-                        Vector3 p0 = mesh.vertices.at(face.x);
-                        Vector3 p1 = mesh.vertices.at(face.y);
-                        Vector3 p2 = mesh.vertices.at(face.z);
-                        // if any point is behind clipping plane, ignore this triangle completely
-                        if (0.0 - p0.z < z_near || 0.0 - p1.z < z_near || 0.0 - p2.z < z_near) {
+                        // We don't implement clipping here, if even one of the 
+                        // vertex is behind the clipping plane, we skip the triangle
+                        if (p0.z > -z_near || p1.z > -z_near || p2.z > -z_near) {
                             continue;
                         }
-                        // calculate points in projected camera space
-                        Vector2 p0pc{ 0.0 - p0.x / p0.z , 0.0 - p0.y / p0.z };
-                        Vector2 p1pc{ 0.0 - p1.x / p1.z , 0.0 - p1.y / p1.z };
-                        Vector2 p2pc{ 0.0 - p2.x / p2.z , 0.0 - p2.y / p2.z };
-                        Vector2 q = Vector2(x + (Real(1.0 / divisions) * i) + Real(1.0 / (divisions * 2.0)), y + (Real(1.0 / divisions) * j) + Real(1.0 / (divisions * 2.0)));
-                        
-                        //calculate the screen space points
-                        Real a = (Real)img.width / (Real)img.height;
-                        Vector2 p0ss{ (Real)img.width * (p0pc.x + s * a) / (2.0 * s * a), (Real)img.height * (p0pc.y - s) / (0.0 - 2.0 * s) };
-                        Vector2 p1ss{ (Real)img.width * (p1pc.x + s * a) / (2.0 * s * a), (Real)img.height * (p1pc.y - s) / (0.0 - 2.0 * s) };
-                        Vector2 p2ss{ (Real)img.width * (p2pc.x + s * a) / (2.0 * s * a), (Real)img.height * (p2pc.y - s) / (0.0 - 2.0 * s) };
 
+                        auto to_screen = [&](const Vector3 &p) {
+                            Vector2 pp = Vector2{-p.x / p.z, -p.y / p.z};
+                            Vector2 screen_pp = Vector2{img.width * (pp.x + s * a) / (2 * s * a),
+                                                        -img.height * (pp.y - s) / (2 * s)};
+                            return screen_pp;
+                        };
+                        Vector2 sp0 = to_screen(p0);
+                        Vector2 sp1 = to_screen(p1);
+                        Vector2 sp2 = to_screen(p2);
+                        Vector2 e01 = sp1 - sp0, e12 = sp2 - sp1, e20 = sp0 - sp2;
+                        auto normal = [](const Vector2 &v) {
+                            return Vector2{v.y, -v.x};
+                        };
+                        Vector2 n01 = normal(e01),
+                                n12 = normal(e12),
+                                n20 = normal(e20);
 
-                        bool hp01 = halfPlane(p0ss, p1ss, q);
-                        bool hp12 = halfPlane(p1ss, p2ss, q);
-                        bool hp20 = halfPlane(p2ss, p0ss, q);
-                        if ((hp01 && hp12 && hp20) || !(hp01 || hp12 || hp20)) {
-                            Vector3 qp = Vector3((2.0 * q.x * s * a / (Real)img.width) - (s * a), (0.0 - 2.0 * s * q.y / (Real)img.height) + s, 0.0);
-                            //Real this_depth = depth(p0, p1, p2, Vector3(p0pc.x, p0pc.y, 0.0), Vector3(p1pc.x, p1pc.y, 0.0), Vector3(p2pc.x, p2pc.y, 0.0), qp);
-                            Vector3 bary = baryVals(p0, p1, p2, Vector3(p0ss.x, p0ss.y, 0.0), Vector3(p1ss.x, p1ss.y, 0.0), Vector3(p2ss.x, p2ss.y, 0.0), Vector3(q.x, q.y, 0.0));
-                            Real this_depth = depth(p0, p1, p2, Vector3(p0ss.x, p0ss.y, 0.0), Vector3(p1ss.x, p1ss.y, 0.0), Vector3(p2ss.x, p2ss.y, 0.0), Vector3(q.x,q.y,0.0));
-                            if (this_depth > z_min) {
-                                subColors[i][j] = bary.x * mesh.vertex_colors.at(face.x) + bary.y * mesh.vertex_colors.at(face.y) + bary.z * mesh.vertex_colors.at(face.z);
-                                z_min = this_depth;
-                                kset = k;
+                        bool s01 = dot(pixel_center - sp0, n01) > 0;
+                        bool s12 = dot(pixel_center - sp1, n12) > 0;
+                        bool s20 = dot(pixel_center - sp2, n20) > 0;
+                        if ((s01 && s12 && s20) || (!s01 && !s12 && !s20)) {
+                            // Inside the triangle
+                            // Interpolate Z
+                            
+                            // 1. convert pixel center from screen space to camera space
+                            auto to_camera = [&](const Vector2 &p) {
+                                // camera to screen:
+                                // x'' = w ((x' + sa)/ (2sa))
+                                // y'' = -h ((y' - s)/ (2s))
+                                // screen to camera:
+                                // x' = 2sa x'' / w - sa
+                                // y' = - 2s y'' / h + s
+                                return Vector2{(2 * s * a) * p.x / img.width - s * a,
+                                               - 2 * s * p.y / img.height + s};
+                            };
+                            Vector2 pp = to_camera(pixel_center);
+                            Vector2 pp0 = to_camera(sp0);
+                            Vector2 pp1 = to_camera(sp1);
+                            Vector2 pp2 = to_camera(sp2);
+
+                            // 2. compute projected barycentric coordinates
+                            auto area = [&](const Vector2 pp0,
+                                            const Vector2 pp1,
+                                            const Vector2 pp2) {
+                                // lift things to 3D to take cross product
+                                Vector3 p0 = Vector3{pp0.x, pp0.y, Real(0)};
+                                Vector3 p1 = Vector3{pp1.x, pp1.y, Real(0)};
+                                Vector3 p2 = Vector3{pp2.x, pp2.y, Real(0)};
+                                return length(cross(p1 - p0, p2 - p0)) / 2;
+                            };
+
+                            Real a0 = area(pp, pp1, pp2);
+                            Real a1 = area(pp0, pp, pp2);
+                            Real a2 = area(pp0, pp1, pp);
+                            Real denom = area(pp0, pp1, pp2);
+                            Real b0p = a0 / denom;
+                            Real b1p = a1 / denom;
+                            Real b2p = a2 / denom;
+
+                            // 3. compute the original barycentric coordinates
+                            b0p /= p0.z; 
+                            b1p /= p1.z;
+                            b2p /= p2.z;
+                            Real b0 = b0p / (b0p + b1p + b2p);
+                            Real b1 = b1p / (b0p + b1p + b2p);
+                            Real b2 = b2p / (b0p + b1p + b2p);
+
+                            // 4. interpolate and obtain Z
+                            Real z = b0 * p0.z + b1 * p1.z + b2 * p2.z;
+                            // Remember to negate to make Z positive
+                            z = fabs(z);
+
+                            // Now, test if Z is smaller
+                            if (z < z_min) {
+                                // Interpolate vertex colors
+                                Vector3 C0 = mesh.vertex_colors[mesh.faces[i][0]];
+                                Vector3 C1 = mesh.vertex_colors[mesh.faces[i][1]];
+                                Vector3 C2 = mesh.vertex_colors[mesh.faces[i][2]];
+
+                                color = b0 * C0 + b1 * C1 + b2 * C2;
+                                z_min = z;
                             }
                         }
                     }
+                    sum += color;
                 }
             }
-            img(x, y) = avgCol(subColors);
+            img(x, y) = sum / Real(n * n);
         }
     }
-
     return img;
+}
+
+Vector3 xform_point(const Matrix4x4 &m, const Vector3 &p) {
+    Vector4 ph = Vector4{p.x, p.y, p.z, Real(1)};
+    Vector4 mph = m * ph;
+    return Vector3{mph.x / mph.w,
+                   mph.y / mph.w,
+                   mph.z / mph.w};
 }
 
 Image3 hw_2_4(const std::vector<std::string> &params) {
@@ -358,97 +374,148 @@ Image3 hw_2_4(const std::vector<std::string> &params) {
 
     Image3 img(scene.camera.resolution.x,
                scene.camera.resolution.y);
-
-    Real z_near = scene.camera.z_near;
+    // Construct perspective projection matrix
+    Real w = scene.camera.resolution.x;
+    Real h = scene.camera.resolution.y;
     Real s = scene.camera.s;
+    Real a = Real(w) / Real(h);
 
+    Matrix4x4 projection;
+    projection(0, 0) = 1;
+    projection(1, 1) = 1;
+    projection(2, 3) = 1;
+    projection(3, 2) = -1;
+    Matrix4x4 camera_to_screen;
+    camera_to_screen(0, 0) = w / (2 * s * a);
+    camera_to_screen(0, 3) = w / 2;
+    camera_to_screen(1, 1) = -h / (2 * s);
+    camera_to_screen(1, 3) = h / 2;
+    camera_to_screen(2, 2) = 1;
+    camera_to_screen(3, 3) = 1;
+
+    Matrix4x4 world_to_screen =
+        camera_to_screen * projection * inverse(scene.camera.cam_to_world);
 
     for (int y = 0; y < img.height; y++) {
         for (int x = 0; x < img.width; x++) {
-            img(x, y) = scene.background;
-        }
-    }
+            Vector3 sum{0, 0, 0};
+            int n = 4;
+            for (int dx = 0; dx < n; dx++) {
+                for (int dy = 0; dy < n; dy++) {
+                    Real xoff = (dx + Real(0.5)) / Real(n);
+                    Real yoff = (dy + Real(0.5)) / Real(n);
+                    Vector2 pixel_center{x + xoff, y + yoff};
+                    Vector3 color = scene.background; // background color
+                    Real z_min = infinity<Real>();
+                    for (const auto &mesh : scene.meshes) {
+                        // construct the MVP matrix
+                        Matrix4x4 MVP = world_to_screen * mesh.model_matrix;
+                        for (int i = 0; i < (int)mesh.faces.size(); i++) {
+                            Vector3 p0 = mesh.vertices[mesh.faces[i][0]];
+                            Vector3 p1 = mesh.vertices[mesh.faces[i][1]];
+                            Vector3 p2 = mesh.vertices[mesh.faces[i][2]];
+                            Vector3 screen_p0 = xform_point(MVP, p0);
+                            Vector3 screen_p1 = xform_point(MVP, p1);
+                            Vector3 screen_p2 = xform_point(MVP, p2);
 
-    for (TriangleMesh mesh : scene.meshes) {
-        UNUSED(mesh); // silence warning, feel free to remove this
-        // paint background
-        
-
-
-        //for each point in the screen space
-        for (int y = 0; y < img.height; y++) {
-            for (int x = 0; x < img.width; x++) {
-                //divide that pixel into 16 subdivisions (4x4) and compute color
-                Vector3 subColors[divisions][divisions];
-                for (int i = 0; i < divisions; i++) {
-                    for (int j = 0; j < divisions; j++) {
-                        Real z_min = 0.0 - std::numeric_limits<Real>::max();
-                        int kset = -1;
-                        //std::cout<< z_min;
-                        //set subpixel to background or prevous color
-                        subColors[i][j] = img(x, y);
-                        for (int k = 0; k < mesh.faces.size(); k++) {
-
-                            // object space
-                            Vector3i face = mesh.faces.at(k);
-                            Vector3 p0o = mesh.vertices.at(face.x);
-                            Vector3 p1o = mesh.vertices.at(face.y);
-                            Vector3 p2o = mesh.vertices.at(face.z);
-                            // if any point is behind clipping plane, ignore this triangle completely
-                            
-
-                            //world space
-                            //Vector3 p = Vector3(x + (Real(1.0 / divisions) * i) + Real(1.0 / (divisions * 2.0)), y + (Real(1.0 / divisions) * j) + Real(1.0 / (divisions * 2.0)), 1.0);
-                            Vector4 wp0 = (mesh.model_matrix) * Vector4(p0o.x, p0o.y, p0o.z, 1.0);
-                            Vector4 wp1 = (mesh.model_matrix) * Vector4(p1o.x, p1o.y, p1o.z, 1.0);
-                            Vector4 wp2 = (mesh.model_matrix) * Vector4(p2o.x, p2o.y, p2o.z, 1.0);
-                            
-
-
-                            //Camera space
-                            //Vector3 p = Vector3(x + (Real(1.0 / divisions) * i) + Real(1.0 / (divisions * 2.0)), y + (Real(1.0 / divisions) * j) + Real(1.0 / (divisions * 2.0)));
-                            Vector4 tp0f = inverse(scene.camera.cam_to_world) * wp0;
-                            Vector4 tp1f = inverse(scene.camera.cam_to_world) * wp1;
-                            Vector4 tp2f = inverse(scene.camera.cam_to_world) * wp2;
-                            Vector3 tp0 = Vector3(tp0f.x, tp0f.y, tp0f.z);
-                            Vector3 tp1 = Vector3(tp1f.x, tp1f.y, tp1f.z);
-                            Vector3 tp2 = Vector3(tp2f.x, tp2f.y, tp2f.z);
-                            if (0.0 - tp0.z < z_near || 0.0 - tp1.z < z_near || 0.0 - tp2.z < z_near) {
+                            // We don't implement clipping here, if even one of the 
+                            // vertex is behind the clipping plane, we skip the triangle
+                            // screen_pi.z stores 1/pi.z
+                            Real inv_z_near = (1/scene.camera.z_near);
+                            if (screen_p0.z > inv_z_near ||
+                                    screen_p1.z > inv_z_near ||
+                                    screen_p2.z > inv_z_near) {
                                 continue;
                             }
 
-                            // calculate points in projected camera space
-                            Vector2 p0pc{ 0.0 - tp0.x / tp0.z , 0.0 - tp0.y / tp0.z };
-                            Vector2 p1pc{ 0.0 - tp1.x / tp1.z , 0.0 - tp1.y / tp1.z };
-                            Vector2 p2pc{ 0.0 - tp2.x / tp2.z , 0.0 - tp2.y / tp2.z };
-                            Vector2 q = Vector2(x + (Real(1.0 / divisions) * i) + Real(1.0 / (divisions * 2.0)), y + (Real(1.0 / divisions) * j) + Real(1.0 / (divisions * 2.0)));
-                            //calculate the screen space points
-                            Real a = (Real)img.width / (Real)img.height;
-                            Vector2 p0ss{ (Real)img.width * (p0pc.x + s * a) / (2.0 * s * a), (Real)img.height * (p0pc.y - s) / (0.0 - 2.0 * s) };
-                            Vector2 p1ss{ (Real)img.width * (p1pc.x + s * a) / (2.0 * s * a), (Real)img.height * (p1pc.y - s) / (0.0 - 2.0 * s) };
-                            Vector2 p2ss{ (Real)img.width * (p2pc.x + s * a) / (2.0 * s * a), (Real)img.height * (p2pc.y - s) / (0.0 - 2.0 * s) };
+                            Vector2 sp0 = Vector2{screen_p0.x, screen_p0.y};
+                            Vector2 sp1 = Vector2{screen_p1.x, screen_p1.y};
+                            Vector2 sp2 = Vector2{screen_p2.x, screen_p2.y};
 
+                            Vector2 e01 = sp1 - sp0, e12 = sp2 - sp1, e20 = sp0 - sp2;
+                            auto normal = [](const Vector2 &v) {
+                                return Vector2{v.y, -v.x};
+                            };
+                            Vector2 n01 = normal(e01),
+                                    n12 = normal(e12),
+                                    n20 = normal(e20);
 
-                            bool hp01 = halfPlane(p0ss, p1ss, q);
-                            bool hp12 = halfPlane(p1ss, p2ss, q);
-                            bool hp20 = halfPlane(p2ss, p0ss, q);
-                            if ((hp01 && hp12 && hp20) || !(hp01 || hp12 || hp20)) {
-                                Vector3 qp = Vector3((2.0 * q.x * s * a / (Real)img.width) - (s * a), (0.0 - 2.0 * s * q.y / (Real)img.height) + s, 0.0);
-                                //Real this_depth = depth(p0, p1, p2, Vector3(p0pc.x, p0pc.y, 0.0), Vector3(p1pc.x, p1pc.y, 0.0), Vector3(p2pc.x, p2pc.y, 0.0), qp);
-                                Vector3 bary = baryVals(tp0, tp1, tp2, Vector3(p0ss.x, p0ss.y, 0.0), Vector3(p1ss.x, p1ss.y, 0.0), Vector3(p2ss.x, p2ss.y, 0.0), Vector3(q.x, q.y, 0.0));
-                                Real this_depth = depth(tp0, tp1, tp2, Vector3(p0ss.x, p0ss.y, 0.0), Vector3(p1ss.x, p1ss.y, 0.0), Vector3(p2ss.x, p2ss.y, 0.0), Vector3(q.x, q.y, 0.0));
-                                if (this_depth > z_min) {
-                                    subColors[i][j] = bary.x * mesh.vertex_colors.at(face.x) + bary.y * mesh.vertex_colors.at(face.y) + bary.z * mesh.vertex_colors.at(face.z);
-                                    z_min = this_depth;
-                                    kset = k;
+                            bool s01 = dot(pixel_center - sp0, n01) > 0;
+                            bool s12 = dot(pixel_center - sp1, n12) > 0;
+                            bool s20 = dot(pixel_center - sp2, n20) > 0;
+                            if ((s01 && s12 && s20) || (!s01 && !s12 && !s20)) {
+                                // Inside the triangle
+                                // Interpolate Z
+                                
+                                // 1. convert pixel center from screen space to camera space
+                                auto to_camera = [&](const Vector2 &p) {
+                                    // camera to screen:
+                                    // x'' = w ((x' + sa)/ (2sa))
+                                    // y'' = -h ((y' - s)/ (2s))
+                                    // screen to camera:
+                                    // x' = 2sa x'' / w - sa
+                                    // y' = - 2s y'' / h + s
+                                    return Vector2{(2 * s * a) * p.x / img.width - s * a,
+                                                   - 2 * s * p.y / img.height + s};
+                                };
+                                Vector2 pp = to_camera(pixel_center);
+                                Vector2 pp0 = to_camera(sp0);
+                                Vector2 pp1 = to_camera(sp1);
+                                Vector2 pp2 = to_camera(sp2);
+
+                                // 2. compute projected barycentric coordinates
+                                auto area = [&](const Vector2 pp0,
+                                                const Vector2 pp1,
+                                                const Vector2 pp2) {
+                                    // lift things to 3D to take cross product
+                                    Vector3 p0 = Vector3{pp0.x, pp0.y, Real(0)};
+                                    Vector3 p1 = Vector3{pp1.x, pp1.y, Real(0)};
+                                    Vector3 p2 = Vector3{pp2.x, pp2.y, Real(0)};
+                                    return length(cross(p1 - p0, p2 - p0)) / 2;
+                                };
+
+                                Real a0 = area(pp, pp1, pp2);
+                                Real a1 = area(pp0, pp, pp2);
+                                Real a2 = area(pp0, pp1, pp);
+                                Real denom = area(pp0, pp1, pp2);
+                                Real b0p = a0 / denom;
+                                Real b1p = a1 / denom;
+                                Real b2p = a2 / denom;
+
+                                // 3. compute the original barycentric coordinates
+                                b0p *= screen_p0.z;
+                                b1p *= screen_p1.z;
+                                b2p *= screen_p2.z;
+                                Real b0 = b0p / (b0p + b1p + b2p);
+                                Real b1 = b1p / (b0p + b1p + b2p);
+                                Real b2 = b2p / (b0p + b1p + b2p);
+
+                                // 4. interpolate and obtain Z
+                                Real z = b0 / screen_p0.z +
+                                         b1 / screen_p1.z +
+                                         b2 / screen_p2.z;
+                                // Remember to negate to make Z positive
+                                z = fabs(z);
+
+                                // Now, test if Z is smaller
+                                if (z < z_min) {
+                                    // Interpolate vertex colors
+                                    Vector3 C0 = mesh.vertex_colors[mesh.faces[i][0]];
+                                    Vector3 C1 = mesh.vertex_colors[mesh.faces[i][1]];
+                                    Vector3 C2 = mesh.vertex_colors[mesh.faces[i][2]];
+
+                                    color = b0 * C0 + b1 * C1 + b2 * C2;
+                                    z_min = z;
                                 }
                             }
                         }
                     }
+                    sum += color;
                 }
-                img(x, y) = avgCol(subColors);
             }
+            img(x, y) = sum / Real(n * n);
         }
     }
     return img;
 }
+

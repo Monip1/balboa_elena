@@ -6,7 +6,7 @@
 
 using json = nlohmann::json;
 
-#define PI 3.141592653589793238463
+#define M_PI 3.141592653589793238463
 
 namespace hw3 {
 
@@ -171,8 +171,8 @@ TriangleMesh parse_ply(const fs::path &filename) {
     return mesh;
 }
 
-Matrix4x4 parse_transformation(const json &node) {
-    // Homework 3.3: take the code from Homework 2.4 and copy paste it here
+Matrix4x4 parse_transformation(const json& node) {
+    // Homework 2.4: parse a sequence of linear transformation and 
     // combine them into a 4x4 transformation matrix
     Matrix4x4 F = Matrix4x4::identity();
     auto transform_it = node.find("transform");
@@ -181,44 +181,46 @@ Matrix4x4 parse_transformation(const json &node) {
         return F;
     }
 
-    Matrix4x4 S = Matrix4x4::identity();
     for (auto it = transform_it->begin(); it != transform_it->end(); it++) {
-        S = Matrix4x4::identity();
         if (auto scale_it = it->find("scale"); scale_it != it->end()) {
             Vector3 scale = Vector3{
                 (*scale_it)[0], (*scale_it)[1], (*scale_it)[2]
             };
-            // TODO (HW2.4): construct a scale matrix and composite with F
-            S(0, 0) = scale.x;
-            S(1, 1) = scale.y;
-            S(2, 2) = scale.z;
+            Matrix4x4 m(
+                scale.x, Real(0), Real(0), Real(0),
+                Real(0), scale.y, Real(0), Real(0),
+                Real(0), Real(0), scale.z, Real(0),
+                Real(0), Real(0), Real(0), Real(1)
+            );
+            F = m * F;
         }
         else if (auto rotate_it = it->find("rotate"); rotate_it != it->end()) {
             Real angle = (*rotate_it)[0];
-            angle = angle * PI / 180.0;
             Vector3 axis = normalize(Vector3{
                 (*rotate_it)[1], (*rotate_it)[2], (*rotate_it)[3]
                 });
-            // TODO (HW2.4): construct a rotation matrix and composite with F
-            S(0, 0) = axis.x * axis.x + (1.0 - axis.x * axis.x) * cos(angle); //a.xa.x + (1.0 − a.xa.x) cos
-            S(1, 0) = axis.x * axis.y * (1.0 - cos(angle)) + axis.z * sin(angle); //a.xa.y(1.0 − cos) + a.z sin 
-            S(2, 0) = axis.x * axis.z * (1.0 - cos(angle)) - axis.y * sin(angle);
-            S(0, 1) = axis.y * axis.x * (1.0 - cos(angle)) - axis.z * sin(angle);
-            S(1, 1) = axis.y * axis.y + (1.0 - axis.y * axis.y) * cos(angle);
-            S(2, 1) = axis.y * axis.z * (1.0 - cos(angle)) + axis.x * sin(angle);
-            S(0, 2) = axis.z * axis.x * (1.0 - cos(angle)) + axis.y * sin(angle);
-            S(1, 2) = axis.z * axis.y * (1.0 - cos(angle)) - axis.x * sin(angle);
-            S(2, 2) = axis.z * axis.z + (1.0 - axis.z * axis.z) * cos(angle);
-
+            Real c = cos(angle * (M_PI / 180));
+            Real s = sin(angle * (M_PI / 180));
+            Real x = axis.x, y = axis.y, z = axis.z;
+            Matrix4x4 m(
+                x * x + (1 - x * x) * c, y * x * (1 - c) - z * s, z * x * (1 - c) + y * s, Real(0),
+                x * y * (1 - c) + z * s, y * y + (1 - y * y) * c, z * y * (1 - c) - x * s, Real(0),
+                x * z * (1 - c) - y * s, y * z * (1 - c) + x * s, z * z + (1 - z * z) * c, Real(0),
+                Real(0), Real(0), Real(0), Real(1)
+            );
+            F = m * F;
         }
         else if (auto translate_it = it->find("translate"); translate_it != it->end()) {
             Vector3 translate = Vector3{
                 (*translate_it)[0], (*translate_it)[1], (*translate_it)[2]
             };
-            // TODO (HW2.4): construct a translation matrix and composite with F
-            S(0, 3) = translate.x;
-            S(1, 3) = translate.y;
-            S(2, 3) = translate.z;
+            Matrix4x4 m(
+                Real(1), Real(0), Real(0), translate.x,
+                Real(0), Real(1), Real(0), translate.y,
+                Real(0), Real(0), Real(1), translate.z,
+                Real(0), Real(0), Real(0), Real(1)
+            );
+            F = m * F;
         }
         else if (auto lookat_it = it->find("lookat"); lookat_it != it->end()) {
             Vector3 position{ 0, 0, 0 };
@@ -242,26 +244,18 @@ Matrix4x4 parse_transformation(const json &node) {
                     (*up_it)[0], (*up_it)[1], (*up_it)[2]
                     });
             }
-            // TODO (HW2.4): construct a lookat matrix and composite with F
             Vector3 d = normalize(target - position);
             Vector3 r = normalize(cross(d, up));
-            Vector3 u2 = cross(r, d);
-            S = { r.x, u2.x, 0.0 - d.x, position.x,
-                  r.y, u2.y, 0.0 - d.y, position.y,
-                  r.z, u2.z, 0.0 - d.z, position.z,
-                  0.0, 0.0, 0.0, 1.0
-            };
+            Vector3 u = cross(r, d);
+
+            Matrix4x4 m(
+                r.x, u.x, -d.x, position.x,
+                r.y, u.y, -d.y, position.y,
+                r.z, u.z, -d.z, position.z,
+                Real(0), Real(0), Real(0), Real(1)
+            );
+            F = m * F;
         }
-        Matrix4x4 result;
-        for (int i = 0; i < 4; i++) {
-            for (int j = 0; j < 4; j++) {
-                result(i, j) = 0;
-                for (int k = 0; k < 4; k++) {
-                    result(i, j) += S(i, k) * F(k, j); // "row times column"
-                }
-            }
-        }
-        F = result;
     }
     return F;
 }
