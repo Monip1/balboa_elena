@@ -1,0 +1,251 @@
+{
+    "resolution": [600, 400],
+    "background": [
+        0.5, 0.5, 0.5
+    ],
+    "objects": [
+        {
+            "type": "rectangle",
+            "color": [0.0, 0.0, 0.0],
+            "transform": [
+                {"scale": [100, 16.666666]},
+                {"translate" : [-50, -8.333333]},
+                {"translate" : [0, -150]},
+                {"rotate" : -56.309932},
+                {"translate" : [300, 200]}
+
+            ]
+        },
+        {
+            "type": "rectangle",
+            "color": [0.0, 0.0, 0.0],
+            "transform": [
+                {"scale": [100, 16.666666]},
+                {"translate" : [-50, -8.333333]},
+                {"translate" : [0, -150]},
+                {"translate" : [0 , -22.22222]},
+                {"rotate" : -56.309932},
+                {"translate" : [300, 200]}
+
+            ]
+        },
+        {
+            "type": "rectangle",
+            "color": [0.0, 0.0, 0.0],
+            "transform": [
+                {"scale": [100, 16.666666]},
+                {"translate" : [-50, -8.333333]},
+                {"translate" : [0, -150]},
+                {"translate" : [0 , -22.22222]},
+                {"translate" : [0 , -22.22222]},
+                {"rotate" : -56.309932},
+                {"translate" : [300, 200]}
+
+            ]
+        },
+        {
+            "type": "rectangle",
+            "color": [0.0, 0.0, 0.0],
+            "transform": [
+                {"scale": [100, 16.666666]},
+                {"translate" : [-50, -8.333333]},
+                {"translate" : [0, -150]},
+                {"translate" : [0 , -22.22222]},
+                {"rotate" : 56.309932},
+                {"translate" : [300, 200]}
+
+            ]
+        },
+        {
+            "type": "rectangle",
+            "color": [0.0, 0.0, 0.0],
+            "transform": [
+                {"scale": [45.83333333, 16.666666]},
+                {"translate" : [-22.91666666, -8.333333]},
+                {"translate" : [27.0833333317 , -150]},
+                {"rotate" : 56.309932},
+                {"translate" : [300, 200]}
+
+            ]
+        },
+        {
+            "type": "rectangle",
+            "color": [0.0, 0.0, 0.0],
+            "transform": [
+                {"scale": [45.83333333, 16.666666]},
+                {"translate" : [-22.91666666, -8.333333]},
+                {"translate" : [-27.0833333317 , -150]},
+                {"rotate" : 56.309932},
+                {"translate" : [300, 200]}
+
+            ]
+        },
+        {
+            "type": "rectangle",
+            "color": [0.0, 0.0, 0.0],
+            "transform": [
+                {"scale": [45.83333333, 16.666666]},
+                {"translate" : [-22.91666666, -8.333333]},
+                {"translate" : [-27.0833333317 , -150]},
+                {"translate" : [0 , -22.22222]},
+                {"translate" : [0 , -22.22222]},
+                {"rotate" : 56.309932},
+                {"translate" : [300, 200]}
+
+            ]
+        },
+        {
+            "type": "rectangle",
+            "color": [0.0, 0.0, 0.0],
+            "transform": [
+                {"scale": [45.83333333, 16.666666]},
+                {"translate" : [-22.91666666, -8.333333]},
+                {"translate" : [27.0833333317 , -150]},
+                {"translate" : [0 , -22.22222]},
+                {"translate" : [0 , -22.22222]},
+                {"rotate" : 56.309932},
+                {"translate" : [300, 200]}
+
+            ]
+        },
+        {
+            "type": "circle",
+            "color": [0.5, 0.0, 0.5],
+            "transform": [
+                {"scale": [100, 100]},
+                {"translate" : [300, 200]}        
+            ]
+        },
+        {
+            "type": "rectangle",
+            "color": [0.0, 0.0, 0.0],
+            "transform": [
+                {"scale": [100, 16.666666]},
+                {"translate" : [-50, -8.333333]},
+                {"translate" : [0, 150]},
+                {"rotate" : 56.309932},
+                {"translate" : [300, 200]}
+
+            ]
+        }, 
+        {
+            "type": "rectangle",
+            "color": [0.0, 0.0, 0.0],
+            "transform": [
+                {"scale": [45.83333333, 16.666666]},
+                {"translate" : [-22.91666666, -8.333333]},
+                {"translate" : [27.0833333317 , 150]},
+                {"translate" : [0 , 22.22222]},
+                {"rotate" : 56.309932},
+                {"translate" : [300, 200]}
+
+            ]
+        },
+        {
+            "type": "rectangle",
+            "color": [0.0, 0.0, 0.0],
+            "transform": [
+                {"scale": [45.83333333, 16.666666]},
+                {"translate" : [-22.91666666, -8.333333]},
+                {"translate" : [-27.0833333317 , 150]},
+                {"translate" : [0 , 22.22222]},
+                {"rotate" : 56.309932},
+                {"translate" : [300, 200]}
+
+            ]
+        },
+        {
+            "type": "rectangle",
+            "color": [0.0, 0.0, 0.0],
+            "transform": [
+                {"scale": [100, 16.666666]},
+                {"translate" : [-50, -8.333333]},
+                {"translate" : [0, 150]},
+                {"translate" : [0 , 22.22222]},
+                {"translate" : [0 , 22.22222]},
+                {"rotate" : 56.309932},
+                {"translate" : [300, 200]}
+
+            ]
+        },
+        {
+            "type": "rectangle",
+            "color": [0.0, 0.0, 0.0],
+            "transform": [
+                {"scale": [45.83333333, 16.666666]},
+                {"translate" : [-22.91666666, -8.333333]},
+                {"translate" : [27.0833333317 , 150]},
+                {"rotate" : -56.309932},
+                {"translate" : [300, 200]}
+
+            ]
+        },
+        {
+            "type": "rectangle",
+            "color": [0.0, 0.0, 0.0],
+            "transform": [
+                {"scale": [45.83333333, 16.666666]},
+                {"translate" : [-22.91666666, -8.333333]},
+                {"translate" : [-27.0833333317 , 150]},
+                {"rotate" : -56.309932},
+                {"translate" : [300, 200]}
+
+            ]
+        },
+        {
+            "type": "rectangle",
+            "color": [0.0, 0.0, 0.0],
+            "transform": [
+                {"scale": [45.83333333, 16.666666]},
+                {"translate" : [-22.91666666, -8.333333]},
+                {"translate" : [27.0833333317 , 150]},
+                {"translate" : [0 , 22.22222]},
+                {"rotate" : -56.309932},
+                {"translate" : [300, 200]}
+
+            ]
+        },
+        {
+            "type": "rectangle",
+            "color": [0.0, 0.0, 0.0],
+            "transform": [
+                {"scale": [45.83333333, 16.666666]},
+                {"translate" : [-22.91666666, -8.333333]},
+                {"translate" : [-27.0833333317 , 150]},
+                {"translate" : [0 , 22.22222]},
+                {"rotate" : -56.309932},
+                {"translate" : [300, 200]}
+
+            ]
+        },
+        {
+            "type": "rectangle",
+            "color": [0.0, 0.0, 0.0],
+            "transform": [
+                {"scale": [45.83333333, 16.666666]},
+                {"translate" : [-22.91666666, -8.333333]},
+                {"translate" : [27.0833333317 , 150]},
+                {"translate" : [0 , 22.22222]},
+                {"translate" : [0 , 22.22222]},
+                {"rotate" : -56.309932},
+                {"translate" : [300, 200]}
+
+            ]
+        },
+        {
+            "type": "rectangle",
+            "color": [0.0, 0.0, 0.0],
+            "transform": [
+                {"scale": [45.83333333, 16.666666]},
+                {"translate" : [-22.91666666, -8.333333]},
+                {"translate" : [-27.0833333317 , 150]},
+                {"translate" : [0 , 22.22222]},
+                {"translate" : [0 , 22.22222]},
+                {"rotate" : -56.309932},
+                {"translate" : [300, 200]}
+
+            ]
+        }
+    ]
+        
+}
